@@ -1,1 +1,3 @@
-#読み上げ
+# 読み上げ
+SpeechSynthesisUtteranceまたはSpeechSynthesisUtteranceまたはVOICEVOX(ローカル)を使ってテキストエリアの文章を読み上げます。
+VOICEVOXで読み上げる場合は自分のPC上でVOICEVOXが起動している必要があります。
