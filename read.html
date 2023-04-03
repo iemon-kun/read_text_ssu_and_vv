@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        nav li {
+            list-style-type: none;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.3.4/axios.min.js"></script>
+    <title>Document</title>
+</head>
+<body>
+<main>
+    <textarea type="text" id="message" placeholder="ここにテキストを入力してください" cols="140" rows="10"></textarea>
+    <br>
+    <button type="button" id="read">読み上げる</button>
+    <audio class="audio"></audio>
+</main>
+<footer>
+    <nav>
+        <label for="chooseAPI">API選択</label>
+        <select id="chooseAPI" name="chooseAPI">
+            <option value="ssu" selected>SpeechSynthesisUtterance</option>
+            <option value="vv">VOICEVOX</option>
+        </select>
+        <ul id="ssuSettings">
+            <h3>SpeechSynthesisUtteranceの設定</h3>
+            <li>
+                <label for="lang">言語　　:</label>
+                <select id="voices"></select>
+            </li>
+            <li>
+                <label for="rate">スピード：</label>
+                <input type="range" id="rate" min="0.5" max="2" step="0.1" value="1" oninput="updateRate()">
+                <span id="rateValue">1</span>
+            </li>
+            <li>
+                <label for="pitch">ピッチ　：</label>
+                <input type="range" id="pitch" min="0" max="2" step="0.1" value="1" oninput="updatePitch()">
+                <span id="pitchValue">1</span>
+            </li>
+            <li>
+                <label for="volume">音量　　：</label>
+                <input type="range" id="volume" min="0" max="1" step="0.1" value="0.8" oninput="updateVolume()">
+                <span id="volumeValue">0.8</span>
+            </li>
+        </ul>
+        <ul id="vvStettings">
+            <h3>VOICEVOXの設定</h3>
+            <li></li>
+        </ul>
+    </nav>
+</footer>
+    <script>
+        // ◆読み上げる
+        const readButton = document.getElementById('read');
+        readButton.addEventListener("click", async () => {
+            const selectedAPI = document.getElementById('chooseAPI').value;
+            if (selectedAPI === "ssu") {
+                const text = document.getElementById('message').value;
+                await readMessageWithVoice(text);
+            }else if (selectedAPI === "vv") {
+                const text = document.getElementById('message')
+                await createAudio(text.value);
+            }
+        })
+
+        // SpeechSynthesisUtteranceで読み上げる時の処理
+        const readMessageWithVoice = (text) => {
+            const speech = new SpeechSynthesisUtterance();
+            speech.text = text;
+            speech.lang = document.getElementById('voices').value;
+            speech.rate = document.getElementById('rate').value;
+            speech.pitch = document.getElementById('pitch').value;
+            speech.volume = document.getElementById('volume').value;
+            window.speechSynthesis.cancel(); // 前回の読み上げをキャンセルする
+            window.speechSynthesis.speak(speech);
+        };
+
+        // VOICEVOXで読み上げる時の処理
+        async function createAudio(text) {
+            const data = await createVoice(text);
+            const audio = document.querySelector(".audio");
+            audio.src = URL.createObjectURL(data);
+            audio.play();
+        }
+        async function createQuery(text) {
+            const response = await axios.post(
+                `http://localhost:50021/audio_query?speaker=1&text=${text}`
+            );
+            return response.data;
+        }
+        async function createVoice(text) {
+            const query = await createQuery(text);
+            const response = await axios.post(
+                "http://localhost:50021/synthesis?speaker=1",
+                query,
+                { responseType: "blob" }
+            );
+            return response.data;
+        }
+
+        // ◆設定メニュー
+        // API選択
+        const chooseAPI = document.getElementById('chooseAPI');
+        const ssuSettings = document.getElementById('ssuSettings');
+        const vvSettings = document.getElementById('vvStettings');
+        // 初期表示
+        if (chooseAPI.value === 'ssu') {
+            ssuSettings.style.display = 'block';
+            vvSettings.style.display = 'none';
+        } else if (chooseAPI.value === 'vv') {
+            ssuSettings.style.display = 'none';
+            vvSettings.style.display = 'block';
+        }
+        // 変更時に表示切り替え
+        chooseAPI.addEventListener('change', () => {
+        if (chooseAPI.value === 'ssu') {
+            ssuSettings.style.display = 'block';
+            vvSettings.style.display = 'none';
+        } else if (chooseAPI.value === 'vv') {
+            ssuSettings.style.display = 'none';
+            vvSettings.style.display = 'block';
+        }
+        });
+
+        
+        // 読み上げスピード調整のスライドバー
+        const updateRate = () => {
+            const rate = document.getElementById('rate').value;
+            document.getElementById('rateValue').innerText = rate;
+        };
+        // 読み上げピッチ調整のスライドバー
+        const updatePitch = () => {
+            const pitch = document.getElementById('pitch').value;
+            document.getElementById('pitchValue').innerText = pitch;
+        };
+        // 読み上げボリューム調整のスライドバー
+        const updateVolume = () => {
+            const volume = document.getElementById('volume').value;
+            document.getElementById('volumeValue').innerText = volume;
+        };
+        // ブラウザに登録されている voices を取得してプルダウンメニューに追加する
+        const loadVoices = () => {
+            const voices = window.speechSynthesis.getVoices();
+            const voiceSelect = document.getElementById('voices');
+            voiceSelect.innerHTML = '';
+            voices.forEach((voice) => {
+                const option = document.createElement('option');
+                option.value = voice.lang;
+                option.textContent = `${voice.name} (${voice.lang})`;
+                if (voice.default) {
+                option.selected = true;
+                }
+                voiceSelect.appendChild(option);
+            });
+        };
+        // voiceの切り替え
+        window.speechSynthesis.onvoiceschanged = loadVoices;   
+    </script>
+</body>
+</html>
